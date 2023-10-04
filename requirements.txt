@@ -1,0 +1,8 @@
+python-dotenv
+langchain
+text_generation
+pypdf
+unstructured
+unstructured[pdf]
+nltk
+openai
