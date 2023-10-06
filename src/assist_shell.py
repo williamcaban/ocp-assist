@@ -1,10 +1,12 @@
 import cmd, re, os
 
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
 
 class AssistShell(cmd.Cmd):
     def preloop(self):
-        self.intro = 'Welcome to the OpenShift Assistant shell.\n'
+        self.intro = '\nWelcome to the OpenShift Assistant shell.\n'
         self.prompt = '(ocp_assist) '
         self.fname = 'ocp.chat'
         self.file = None
@@ -14,9 +16,7 @@ class AssistShell(cmd.Cmd):
 
     def default(self, arg):
         'Default action for prompts'
-        answer=self.llm(self.render_prompt(arg), 
-                        callbacks=[StreamingStdOutCallbackHandler()])
-        print("\n")
+        self.process_prompt(arg)
         self.answer_from_llm = True
         #return answer
 
@@ -32,10 +32,11 @@ class AssistShell(cmd.Cmd):
 
     def do_status(self, arg):
         'Display the status of the system'
-        msg=f"SYSTEM STATUS\n{str('=')*15}"
-        for c in self.status_callbacks:
-            msg=msg+"\n"+c()
+        msg=f"# SYSTEM STATUS\n{str('=')*15}"
         print(msg)
+        for c in self.status_callbacks:
+            for msg in c():
+                print(f"- {msg}")
 
     def do_reset(self, arg):
         'Tells the agent to forget previous contexts.'
@@ -124,14 +125,8 @@ class AssistShell(cmd.Cmd):
 
     def set_llm(self,llm):
         self.llm=llm
-    
-    def add_prompt_callback(self, callback):
-        'Add a prompt callback function. The callback function must return a prompt string'
-        try:
-            self.prompts_callbacks
-        except:
-            self.prompts_callbacks = []
-        self.prompts_callbacks.append(callback)
+        self.add_prompt_callback()
+        self.build_chain()
 
     def add_status_callback(self, callback):
         'Add a status callback function. The callback function must return a string'
@@ -141,14 +136,44 @@ class AssistShell(cmd.Cmd):
             self.status_callbacks = []
         self.status_callbacks.append(callback)
 
-    def render_prompt(self, arg):
-        prompt=arg
-        for p in self.prompts_callbacks:
-            prompt=p(prompt)
-        return prompt
+    def add_prompt_callback(self, callback=None):
+        'Add a prompt callback function. The callback function must return a prompt string'
+        try:
+            self.prompts_callbacks
+        except:
+            self.prompts_callbacks = []
+        
+        if callback != None:
+            self.prompts_callbacks.append(callback)
+            self.build_chain()
+
+    def build_chain(self, prompt_class='default'):
+        prompt_template=PromptTemplate.from_template('')
+        
+        if len(self.prompts_callbacks) > 0:
+            for p in self.prompts_callbacks:
+                prompt_template=prompt_template+p(prompt_class)
+        else:
+            prompt_template=prompt_template+'{user_input}'
+
+        self.llm_chain = LLMChain(llm=self.llm, prompt=prompt_template, verbose=True)
+ 
+    def process_prompt(self, raw_prompt, prompt_class='default'):
+        # rebuild chain if using a non-default prompt_class
+        if prompt_class != 'default':
+            self.build_chain(prompt_class=prompt_class)
+
+        input_dict = self.llm_chain.input_schema().dict()
+        input_dict['user_input']=raw_prompt
+
+        for k in input_dict.keys():
+            input_dict[k]='' if input_dict[k] is None else input_dict[k] 
+
+        print(self.llm_chain.run(**input_dict))
     
     def status(self):
-        return f"Assistant shell is operational"
+        return [f"{'Assistant Shell':<20} = operational",
+                f"{'Assistant Chains':<20} = {self.llm_chain.llm}"]
 
 if __name__ == '__main__':
     AssistShell().cmdloop()

@@ -9,10 +9,10 @@ from src.assist_prompts import AssistPrompts
 
 def main():
     assist_prompts=AssistPrompts()
-    llm_config=LLMConfig()
+    llm_config=LLMConfig(backend='watson')
     assist=AssistShell()
     assist.set_llm(llm_config.llm)
-    assist.add_prompt_callback(assist_prompts.render_prompt)
+    assist.add_prompt_callback(assist_prompts.get_prompt_template)
     assist.add_status_callback(llm_config.status)
     assist.cmdloop()
 

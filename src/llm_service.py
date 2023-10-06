@@ -8,8 +8,15 @@ warnings.simplefilter("ignore", UserWarning)
 import openai
 
 # langchain
+from langchain.chains import LLMChain
 from langchain.llms import HuggingFaceTextGenInference
+from langchain.prompts import PromptTemplate
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+# watson
+from ibm_watson_machine_learning.foundation_models import Model
+from ibm_watson_machine_learning.metanames import GenTextParamsMetaNames as GenParams
+from ibm_watson_machine_learning.foundation_models.extensions.langchain import WatsonxLLM
 
 class LLMConfig():
     def __init__(self,backend='tgi', 
@@ -36,23 +43,32 @@ class LLMConfig():
                 self.prefix="### Instruction:\n"
                 self.suffix="\n### Response:"
             case _:
-                self.prefix="###"
-                self.suffix="###"
+                # self.prefix="###"
+                # self.suffix="###"
+                pass
 
-    def set_llm_instance(self):
+    def set_llm_instance(self, inference_url=None, api_key=None):
         match self.backend:
             case 'openai':
                 # URI end point:port for local inference server
-                openai.api_base = os.environ.get('OPENAI_API_BASE', 'http://localhost:1234/v1') # use local LM Server if not defined
-                openai.api_key = os.environ.get('OPENAI_API_KEY','') # use empty API Key if not defined
-
-                # TODO: This section need to be completed
-                self.llm=None
+                self.inference_url = os.environ.get('OPENAI_API_BASE', inference_url) # use local LM Server if not defined
+                self.api_key = os.environ.get('OPENAI_API_KEY', api_key) # use empty API Key if not defined
+                self.openai_llm_instance()
             case 'tgi':
-                self.inference_url = os.environ.get('TGI_SERVER_URL','http://localhost:8010/')
+                self.inference_url = os.environ.get('TGI_SERVER_URL', inference_url)
+                if api_key != None:
+                    self.api_key=api_key
                 self.tgi_llm_instance()
+            case 'watson':
+                self.inference_url = os.environ.get('WATSON_URL', inference_url)
+                self.api_key = os.environ.get('WATSON_API_KEY', api_key)
+                self.watson_llm_instance()
             case _:
                 print(f'ERROR: Unsupported LLM backend type {self.backend}')
+
+    def openai_llm_instance(self):
+        # TODO: This section need to be completed
+        self.llm=None
 
     def tgi_llm_instance(self):
         self.llm = HuggingFaceTextGenInference(
@@ -65,11 +81,68 @@ class LLMConfig():
             repetition_penalty=1.03,
             streaming=True
         )
+    
+    def watson_llm_instance(self):
+        creds = {
+            "url": self.inference_url, # example from https://heidloff.net/article/watsonx-langchain/ 
+            "apikey": self.api_key
+        }
+        params = {
+            GenParams.DECODING_METHOD: "sample",
+            GenParams.MIN_NEW_TOKENS: 1,
+            GenParams.MAX_NEW_TOKENS: 512,
+            GenParams.RANDOM_SEED: 42,
+            GenParams.TEMPERATURE: 0.05,
+            GenParams.TOP_K: 10,
+            GenParams.TOP_P: 0.95,
+            GenParams.REPETITION_PENALTY: 1.03 # https://www.ibm.com/docs/en/watsonx-as-a-service?topic=models-parameters
+        }
+        # Watson models:
+        # google/flan-ul2, google/flan-t5-xxl, eleutherai/gpt-neox-20b, bigcode/starcoder, 
+        # meta-llama/llama-2-70b-chat, bigscience/mt0-xxl,
+        # ibm/granite-13b-chat-v1, ibm/granite-13b-instruct-v1, ibm/mpt-7b-instruct
+        llm_model = Model(model_id=os.environ.get("WATSON_MODEL","meta-llama/llama-2-70b-chat"),
+                         credentials=creds, 
+                         params=params, 
+                         project_id=os.environ.get('WATSON_PROJECT_ID', None)
+                         )
+        self.llm = WatsonxLLM(model=llm_model)
 
     def status(self):
-        return f"LLM backend={self.backend}\nLLM url={self.inference_url}\nLLM prompt_type={self.prompt_type}"
+        return [f"{'LLM backend':<20} = {self.backend}",
+                f"{'LLM url':<20} = {self.inference_url}",
+                f"{'LLM prompt_type':<20} = {self.prompt_type}"]
 
 
 if __name__ == '__main__':
-    llm_config=LLMConfig()
-    llm_config.llm("Tell me a joke", callbacks=[StreamingStdOutCallbackHandler()])
+    # load environment variables from .env
+    from dotenv import load_dotenv, find_dotenv
+    _ = load_dotenv(find_dotenv()) # read local .env file
+
+    #prompt="What is Kubernetes?"
+    prompt = PromptTemplate(
+        input_variables=["question"],
+        template="""\
+            {question}
+            Instruction:
+            - You are a helpful assistant with expertise in OpenShift and Kubernetes.
+            - Do not address questions unrelated to Kubernetes or OpenShift.
+            - Refuse to participate in anything that could harm a human.
+            - Provide the answer for the question based on the given context.
+            - Refuse to answer questions unrelated to topics in Kubernetes or OpenShift.
+            - Prefer succinct answers with YAML examples.
+            Answer:
+            """,
+    )
+    llm_config=LLMConfig(backend='watson')
+    llm_chain=LLMChain(llm=llm_config.llm, prompt=prompt)
+
+    q1="How to build an application in OpenShift"
+    print(f"# Test 1: {q1}")
+    print(llm_chain.run(q1))
+
+    # system should reject this request
+    q2="Tell me a joke"
+    print(f"# Test 2: {q2}")
+    print(llm_config.llm(q2))
+    #llm_config.llm("Tell me a joke", callbacks=[StreamingStdOutCallbackHandler()])

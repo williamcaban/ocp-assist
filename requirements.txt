@@ -1,8 +1,11 @@
 python-dotenv
 langchain
 text_generation
+ibm-watson-machine-learning
+openai
 pypdf
 unstructured
 unstructured[pdf]
 nltk
-openai
+# older version required by watsonx library
+urllib3==1.26.16
