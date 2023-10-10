@@ -3,14 +3,11 @@ Instructions:
 - Your work is to determine if a question is related to Kubernetes, OpenShift, neither, or both.
 - Answer the question as truthfully as possible using the provided text.
 - Do not include an explanation or any additional text in the answer.
-- Identify the Topics required to answer the Question.
-- Provide a single JSON formatted reply using only the keys in the Answer template.
+- Identify the Labels required to answer the Question.
+- Provide a JSON formatted list of the Labels.
 {instructions}
-Context:
-- Kubernetes
-- OpenShift
-{context}
-Topics:
+
+Labels:
 - Installation
 - Applications
 - Control-Plane
@@ -26,13 +23,8 @@ Topics:
 - Argo
 - Tekton
 {topics}
-Answer:
-```json
-{
- 'isKubernetes': boolean,
- 'isOpenShift': boolean,
- 'topics': list
-}
-```
+
 Question:
-{user_input}
+Identify the labels for the following text: {user_input}
+
+Answer:

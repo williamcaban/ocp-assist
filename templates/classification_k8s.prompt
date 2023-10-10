@@ -1,0 +1,19 @@
+Instructions: 
+
+You are a Kubernetes and OpenShift expert. Classify Text into "lables": Installation, Applications, Control-Plane, Deployment, HPA, Autoscaler, Ingress, Telco, PVC, Storage, GitOps, Pipelines, Argo, Tekton {labels}. Provide a single JSON formatted answer using the labels key in the Answer template.
+
+Text:
+
+Provide an example of a Kubernetes Deployment
+
+Answer:
+
+{
+    "labels" : ["Applications", "Deployment"]
+}
+
+Text:
+
+{user_input}
+
+Answer:

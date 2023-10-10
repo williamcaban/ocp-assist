@@ -1,8 +1,9 @@
 import os 
 
 class AssistPrompts():
-    def __init__(self) -> None:
-        self.prompt_class = {}
+    def __init__(self, prompt_class='default') -> None:
+        self.prompt_collection = {'default':'Return a JSON with key msg and value string "{user_input}"'}
+        self.prompt_class = prompt_class
         self.read_prompts()
 
     def read_prompts(self, dir_path='templates'):
@@ -10,7 +11,7 @@ class AssistPrompts():
         for fname in os.listdir(path=dir_path):
             try:
                 if os.path.isfile(os.path.join(dir_path, fname)) and fname.endswith('.prompt'):
-                    self.prompt_class[fname[:-7]]=open(os.path.join(dir_path, fname), 'r').read()
+                    self.prompt_collection[fname[:-7]]=open(os.path.join(dir_path, fname), 'r').read()
                     #print(f"DEBUG: Loading {fname}...")
             except FileNotFoundError:
                 print(f"The directory {dir_path} does not exist")
@@ -19,15 +20,51 @@ class AssistPrompts():
             except OSError as e:
                 print(f"An OS error occurred: {e}")
 
-    def get_prompt_template(self, prompt_class):
+    def get_prompt_template(self, prompt_class='default', verbose=False):
         """
-        Return the Jija2 prompt template.
+        Return the f-string formatted prompt template.
         If prompt_class do not exist return the default prompt
         If default prompt class do not exist return None.
         """
-        return self.prompt_class.get(prompt_class, 
-                                     self.prompt_class.get('default', None)
+        if verbose:
+            print(f"# Prompt classes={list(self.prompt_collection.keys())}")
+        return self.prompt_collection.get(prompt_class, 
+                                     self.prompt_collection.get('default', None)
                                      )
+
+
+
+
+    # def set_llm(self,llm):
+    #     self.llm=llm
+    #     self.add_prompt_callback()
+    #     self.build_chain()
+
+    # def build_chain(self, prompt_class='default'):
+    #     prompt_template=PromptTemplate.from_template('')
+        
+    #     if len(self.prompts_callbacks) > 0:
+    #         for p in self.prompts_callbacks:
+    #             prompt_template=prompt_template+self.get_prompt_template(prompt_class)
+    #     else:
+    #         prompt_template=prompt_template+'{user_input}'
+
+    #     self.llm_chain = LLMChain(llm=self.llm, prompt=prompt_template, verbose=True)
+ 
+    # def process_prompt(self, raw_prompt, prompt_class='default'):
+    #     # rebuild chain if using a non-default prompt_class
+    #     if prompt_class != 'default':
+    #         self.build_chain(prompt_class=prompt_class)
+
+    #     input_dict = self.llm_chain.input_schema().dict()
+    #     input_dict['user_input']=raw_prompt
+
+    #     for k in input_dict.keys():
+    #         input_dict[k]='' if input_dict[k] is None else input_dict[k] 
+
+    #     print(self.llm_chain.run(**input_dict))
+    
+
 
     # def render_prompt(self, user_prompt=None, add_instructions='',context=''):
     #     """

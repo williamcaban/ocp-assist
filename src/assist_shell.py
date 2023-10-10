@@ -13,6 +13,7 @@ class AssistShell(cmd.Cmd):
         self.memory = None
         self.answer_from_llm = False
         self.add_status_callback(self.status)
+        self.prompt_class = 'default' # start with 'default' prompt class
 
     def default(self, arg):
         'Default action for prompts'
@@ -20,17 +21,79 @@ class AssistShell(cmd.Cmd):
         self.answer_from_llm = True
         #return answer
 
-    def do_info(self, arg):
+    def do_assist(self, arg):
+        """
+        Assistant specific sub-commands.
+        
+        assist [<sub-command>] [<sub-command-options>]
+        
+            info                    : Display general information about the assistant
+            status                  : Display system status
+            reset                   : Tells the agent to forget previous interactions and context
+            record                  : Starts saving interaction to filename: record <file_name> (default to ocp.chat)
+            playback                : Playback interaction from a filename: playback <file_name> (default to ocp.chat)
+            forget                  : Removes saved interaction filename: forget <file_name> (default to ocp.chat)
+            prompt <prompt_class>   : Return current prompt template or set new prompt class template
+            who_are_you             : Identify assistant agent
+        """
+        arg_list = arg.split()
+
+        try:
+            sub_command = arg_list[0]
+        except:
+            sub_command = None
+
+        try:
+            param1 = arg_list[1]
+        except:
+            param1 = None
+        
+        match sub_command:
+            case 'info':
+                self.assist_info()
+            case 'status':
+                self.assist_status()
+            case 'reset':
+                self.assist_reset()
+            case 'record':
+                self.assist_record(param1)
+            case 'forget':
+                self.assist_forget(param1)
+            case 'playback':
+                self.assist_playback(param1)
+            case 'prompt':
+                self.assist_prompt_class(param1)
+            case 'who_are_you':
+                self.assist_who_are_you()
+            case _:
+                print('Unknown or missing <sub-command>')
+                print(self.do_assist.__doc__)
+        
+    def assist_info(self):
         """
         Welcome to OpenShift Assistant shell. You may interact with this assistant using English natural language.
         Type help or ? for information on additional built-in commands.\n
         """
-        print(self.do_info.__doc__)
+        print(self.assist_info.__doc__)
 
-    def do_who_are_you(self, arg):
+    def assist_who_are_you(self):
         print('Rocket Panda!!!')
 
-    def do_status(self, arg):
+    def assist_prompt_class(self, prompt_class=None):
+        if prompt_class != None:
+            self.prompt_class=prompt_class
+
+        prompt_template=PromptTemplate.from_template('')        
+        if len(self.prompts_callbacks) > 0:
+            for p in self.prompts_callbacks:
+                #print(f"DEBUG\n{p(self.prompt_class)}\n\n")
+                prompt_template=prompt_template+p(self.prompt_class, verbose=True)
+        else:
+            prompt_template=prompt_template+'{user_input}'
+        # Display current prompt template
+        print(f"Active prompt class='{self.prompt_class}' with input variables='{prompt_template.input_variables}'\nRAW_TEMPLATE\n",prompt_template.template)
+
+    def assist_status(self):
         'Display the status of the system'
         msg=f"# SYSTEM STATUS\n{str('=')*15}"
         print(msg)
@@ -38,29 +101,29 @@ class AssistShell(cmd.Cmd):
             for msg in c():
                 print(f"- {msg}")
 
-    def do_reset(self, arg):
+    def assist_reset(self):
         'Tells the agent to forget previous contexts.'
         self.clean_memory()
         print('My memory has been reset.')
 
     def do_exit(self, arg):
-        'Stop recording, and exit assistant'
+        'Exit assistant'
         print('Thank you for using OpenShift Assistant')
         self.close()
         return True
     
-    def do_record(self, arg):
+    def assist_record(self, arg):
         'Start saving interaction to filename: RECORD ocp.chat (default to ocp.chat)'
         if arg != None:
             self.fname = self.safe_fname(arg)
         self.file = open(self.fname, 'a')
 
-    def do_forget(self, arg):
+    def assist_forget(self, arg):
         'Remove saved interaction filename: FORGET ocp.chat (default to ocp.chat)'
         self.remove(arg)
         print("I have forgotten our conversation.")
 
-    def do_playback(self, arg):
+    def assist_playback(self, arg):
         'Playback interaction from a filename: PLAYBACK ocp.chat (default to ocp.chat)'
         self.close()
         if arg != None:
@@ -141,27 +204,31 @@ class AssistShell(cmd.Cmd):
         try:
             self.prompts_callbacks
         except:
+            # assume these need creation
             self.prompts_callbacks = []
+            self.prompt_class = 'default'
         
         if callback != None:
             self.prompts_callbacks.append(callback)
             self.build_chain()
 
-    def build_chain(self, prompt_class='default'):
+    def build_chain(self):
         prompt_template=PromptTemplate.from_template('')
         
         if len(self.prompts_callbacks) > 0:
             for p in self.prompts_callbacks:
-                prompt_template=prompt_template+p(prompt_class)
+                prompt_template=prompt_template+p(self.prompt_class)
         else:
+            print(f"DEBUG: Cannot find 'prompts_callbacks' defined, using direct interaction.")
             prompt_template=prompt_template+'{user_input}'
 
         self.llm_chain = LLMChain(llm=self.llm, prompt=prompt_template, verbose=True)
  
-    def process_prompt(self, raw_prompt, prompt_class='default'):
+    def process_prompt(self, raw_prompt):
         # rebuild chain if using a non-default prompt_class
-        if prompt_class != 'default':
-            self.build_chain(prompt_class=prompt_class)
+        if self.prompt_class != 'default':
+            print(f"DEBUG: Found prompt_class='{self.prompt_class}'. Building LLMChain...")
+            self.build_chain()
 
         input_dict = self.llm_chain.input_schema().dict()
         input_dict['user_input']=raw_prompt
@@ -169,7 +236,10 @@ class AssistShell(cmd.Cmd):
         for k in input_dict.keys():
             input_dict[k]='' if input_dict[k] is None else input_dict[k] 
 
-        print(self.llm_chain.run(**input_dict))
+        try:
+            print(self.llm_chain.run(**input_dict))
+        except Exception as error:
+            print(f"\nERROR: Ooops. There is something wrong with the backend LLM: {type(error).__name__}")
     
     def status(self):
         return [f"{'Assistant Shell':<20} = operational",

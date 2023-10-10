@@ -7,6 +7,6 @@ Instructions:
 {instructions}
 
 Question: 
-Give step-by-step instructions with explanation for {user_input}
+Give YAML resource for {user_input}
 
 Answer:

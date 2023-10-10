@@ -4,31 +4,48 @@ import os
 import warnings
 warnings.simplefilter("ignore", UserWarning)
 
-# openai
-import openai
-
 # langchain
 from langchain.chains import LLMChain
-from langchain.llms import HuggingFaceTextGenInference
 from langchain.prompts import PromptTemplate
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+#from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
-# watson
-from ibm_watson_machine_learning.foundation_models import Model
-from ibm_watson_machine_learning.metanames import GenTextParamsMetaNames as GenParams
-from ibm_watson_machine_learning.foundation_models.extensions.langchain import WatsonxLLM
+__llm_backends= os.environ.get('LLM_BACKENDS', 'tgi').replace(" ",'').split(',')
+
+for __backend in __llm_backends:
+    print(f"Loading libraries for {__backend}")
+    match __backend:
+        case 'tgi':
+            from langchain.llms import HuggingFaceTextGenInference
+        case 'openai':
+            # openai
+            import openai
+        case 'watson':
+            # watsonX (requires WansonX libraries)
+            from ibm_watson_machine_learning.foundation_models import Model
+            from ibm_watson_machine_learning.metanames import GenTextParamsMetaNames as GenParams
+            from ibm_watson_machine_learning.foundation_models.extensions.langchain import WatsonxLLM
+        case 'bam':
+            # BAM lab
+            from genai.extensions.langchain import LangChainInterface
+            from genai.credentials import Credentials
+            from genai.model import Model
+            from genai.schemas import GenerateParams
+        case _:
+            print(f"WARNING: Unknown dependencies for {__backend}")
 
 class LLMConfig():
-    def __init__(self,backend='tgi', 
+    def __init__(self,backend='bam', 
                  inference_url=None,
-                 prompt_type='llama2',
-                 api_key=None) -> None:
+                 prompt_type=None,
+                 api_key=None,
+                 model=None) -> None:
         self.backend=backend
         self.inference_url=inference_url
         self.prompt_type=prompt_type
         self.api_key=api_key
+        self.model=model
         self.llm=None
-        self.set_prompt_format()
+        #self.set_prompt_format()  # FIXME: Not used right now
         self.set_llm_instance()
     
     def set_prompt_format(self):
@@ -47,22 +64,30 @@ class LLMConfig():
                 # self.suffix="###"
                 pass
 
-    def set_llm_instance(self, inference_url=None, api_key=None):
+    def set_llm_instance(self, inference_url=None, api_key=None, model=None):
         match self.backend:
             case 'openai':
                 # URI end point:port for local inference server
-                self.inference_url = os.environ.get('OPENAI_API_BASE', inference_url) # use local LM Server if not defined
+                self.inference_url = os.environ.get('OPENAI_API_URL', inference_url) # use local LM Server if not defined
                 self.api_key = os.environ.get('OPENAI_API_KEY', api_key) # use empty API Key if not defined
+                self.model = os.environ.get('OPENAI_MODEL', model)
                 self.openai_llm_instance()
             case 'tgi':
-                self.inference_url = os.environ.get('TGI_SERVER_URL', inference_url)
-                if api_key != None:
-                    self.api_key=api_key
+                self.inference_url = os.environ.get('TGI_API_URL', inference_url)
+                self.api_key = os.environ.get('TGI_API_KEY', api_key) # use empty API Key if not defined
+                self.model = os.environ.get('TGI_MODEL', model)
                 self.tgi_llm_instance()
             case 'watson':
-                self.inference_url = os.environ.get('WATSON_URL', inference_url)
+                self.inference_url = os.environ.get('WATSON_API_URL', inference_url)
                 self.api_key = os.environ.get('WATSON_API_KEY', api_key)
+                self.model = os.environ.get('WATSON_MODEL', model)
                 self.watson_llm_instance()
+            case 'bam':
+                # BAM Research lab
+                self.inference_url = os.environ.get('BAM_API_URL', inference_url)
+                self.api_key = os.environ.get('BAM_API_KEY', api_key)
+                self.model = os.environ.get('BAM_MODEL', model)
+                self.bam_llm_instance()
             case _:
                 print(f'ERROR: Unsupported LLM backend type {self.backend}')
 
@@ -81,6 +106,22 @@ class LLMConfig():
             repetition_penalty=1.03,
             streaming=True
         )
+    
+    def bam_llm_instance(self):
+        """BAM Research Lab"""
+        creds = Credentials(api_key=self.api_key, 
+                            api_endpoint=self.inference_url)
+        params = GenerateParams(decoding_method="sample", 
+                                max_new_tokens=512,
+                                min_new_tokens=1,
+                                random_seed=42,
+                                top_k= 10,
+                                top_p=0.95,
+                                repetition_penalty=1.03,
+                                temperature=0.05)
+        self.llm = LangChainInterface(model=self.model,
+                                      params=params, 
+                                      credentials=creds)
     
     def watson_llm_instance(self):
         creds = {
@@ -101,7 +142,7 @@ class LLMConfig():
         # google/flan-ul2, google/flan-t5-xxl, eleutherai/gpt-neox-20b, bigcode/starcoder, 
         # meta-llama/llama-2-70b-chat, bigscience/mt0-xxl,
         # ibm/granite-13b-chat-v1, ibm/granite-13b-instruct-v1, ibm/mpt-7b-instruct
-        llm_model = Model(model_id=os.environ.get("WATSON_MODEL","meta-llama/llama-2-70b-chat"),
+        llm_model = Model(model_id=self.model,
                          credentials=creds, 
                          params=params, 
                          project_id=os.environ.get('WATSON_PROJECT_ID', None)
@@ -111,8 +152,8 @@ class LLMConfig():
     def status(self):
         return [f"{'LLM backend':<20} = {self.backend}",
                 f"{'LLM url':<20} = {self.inference_url}",
+                f"{'LLM model':<20} = {self.model}",
                 f"{'LLM prompt_type':<20} = {self.prompt_type}"]
-
 
 if __name__ == '__main__':
     # load environment variables from .env
@@ -134,7 +175,8 @@ if __name__ == '__main__':
             Answer:
             """,
     )
-    llm_config=LLMConfig(backend='watson')
+
+    llm_config=LLMConfig(backend='bam')
     llm_chain=LLMChain(llm=llm_config.llm, prompt=prompt)
 
     q1="How to build an application in OpenShift"
