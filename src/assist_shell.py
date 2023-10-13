@@ -26,10 +26,29 @@ class AssistShell(cmd.Cmd):
         'Default action for prompts'
         self.process_prompt(arg)
         self.answer_from_llm = True
-        #return answer
+        
     def do_echo(self, arg):
         'Return the prompt'
         print(f"Input Prompt={arg}")
+
+    def do_rephrase(self, arg):
+        """Rephrase prompt for K8s context"""
+        current_prompt_class=self.prompt_class
+        self.prompt_class='rephrase'
+        self.process_prompt(arg)
+        print("\n")
+        self.prompt_class=current_prompt_class
+
+    def do_classify(self, arg):
+        """Return a list identifying the K8s or OCP labels or topics for a given prompt"""
+        current_prompt_class=self.prompt_class
+        self.prompt_class='classification'
+        if len(arg.split()) > 2:
+            self.process_prompt(arg)
+        else:
+            print("[]")
+        print("\n")
+        self.prompt_class=current_prompt_class
 
     def do_assist(self, arg):
         """

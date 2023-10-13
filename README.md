@@ -70,4 +70,3 @@ Current features and progress
 | &cross;       | Add memory for context continuity during chat |
 | &cross;       | Runtime switch of LLM-backend     |
 | &cross;       | Move LLM logic from assist class to dedicated class |
-
