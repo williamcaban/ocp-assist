@@ -1,19 +1,25 @@
-import os
+import os, inspect
 
 # workaround to disable UserWarning
 import warnings
 warnings.simplefilter("ignore", UserWarning)
 
+from src.logger import Logger
+
 # langchain
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
-#from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from langchain.callbacks.manager import CallbackManager
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
-__llm_backends= os.environ.get('LLM_BACKENDS', 'tgi').replace(" ",'').split(',')
+__llm_backends= os.environ.get('LLM_BACKENDS', 'ollama').replace(" ",'').split(',')
 
 for __backend in __llm_backends:
-    print(f"Loading libraries for {__backend}")
+    if os.environ.get('LOG_LEVEL', 'INFO') == 'DEBUG': 
+       print(f"Loading libraries for {__backend}")
     match __backend:
+        case 'ollama':
+            from langchain.llms import Ollama 
         case 'tgi':
             from langchain.llms import HuggingFaceTextGenInference
         case 'openai':
@@ -34,12 +40,13 @@ for __backend in __llm_backends:
             print(f"WARNING: Unknown dependencies for {__backend}")
 
 class LLMConfig():
-    def __init__(self,backend='bam', 
+    def __init__(self,backend='ollama', 
                  inference_url=None,
                  prompt_type=None,
                  api_key=None,
-                 model=None) -> None:
-        self.backend=backend
+                 model=None, logger=None) -> None:
+        self.logger = logger if logger else Logger(show_message=False).logger
+        self.backend=os.environ.get('LLM_DEFAULT', backend)
         self.inference_url=inference_url
         self.prompt_type=prompt_type
         self.api_key=api_key
@@ -65,6 +72,7 @@ class LLMConfig():
                 pass
 
     def set_llm_instance(self, inference_url=None, api_key=None, model=None):
+        self.logger.debug(f"[{inspect.stack()[0][3]}] {self.backend}")
         match self.backend:
             case 'openai':
                 # URI end point:port for local inference server
@@ -72,6 +80,12 @@ class LLMConfig():
                 self.api_key = os.environ.get('OPENAI_API_KEY', api_key) # use empty API Key if not defined
                 self.model = os.environ.get('OPENAI_MODEL', model)
                 self.openai_llm_instance()
+            case 'ollama':
+                # 
+                self.inference_url = os.environ.get('OLLAMA_API_URL', inference_url) # use local LM Server if not defined
+                self.api_key = os.environ.get('OLLAMA_API_KEY', api_key) # use empty API Key if not defined
+                self.model = os.environ.get('OLLAMA_MODEL', model)
+                self.ollama_llm_instance()  
             case 'tgi':
                 self.inference_url = os.environ.get('TGI_API_URL', inference_url)
                 self.api_key = os.environ.get('TGI_API_KEY', api_key) # use empty API Key if not defined
@@ -93,9 +107,25 @@ class LLMConfig():
 
     def openai_llm_instance(self):
         # TODO: This section need to be completed
+        self.logger.warning(f"[{inspect.stack()[0][3]}] OpenAI LLM Backend is not implemented")
         self.llm=None
 
+    def ollama_llm_instance(self):
+        self.logger.debug(f"[{inspect.stack()[0][3]}] Creating Ollama LLM instance")
+        self.llm = Ollama(
+            base_url=self.inference_url,
+            model=self.model,
+            verbose=True,
+            top_k=10,
+            top_p=0.95,
+            temperature=0.01,
+            repeat_penalty=1.03,
+            callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
+        )
+        self.logger.debug(f"[{inspect.stack()[0][3]}] Ollama LLM instance {self.llm}")
+
     def tgi_llm_instance(self):
+        self.logger.debug(f"[{inspect.stack()[0][3]}] Creating Hugging Face TGI LLM instance")
         self.llm = HuggingFaceTextGenInference(
             inference_server_url=self.inference_url,
             max_new_tokens=512,
@@ -106,9 +136,11 @@ class LLMConfig():
             repetition_penalty=1.03,
             streaming=True
         )
+        self.logger.debug(f"[{inspect.stack()[0][3]}] Hugging Face TGI LLM instance {self.llm}")
     
     def bam_llm_instance(self):
         """BAM Research Lab"""
+        self.logger.debug(f"[{inspect.stack()[0][3]}] BAM LLM instance")
         creds = Credentials(api_key=self.api_key, 
                             api_endpoint=self.inference_url)
         params = GenerateParams(decoding_method="sample", 
@@ -122,8 +154,11 @@ class LLMConfig():
         self.llm = LangChainInterface(model=self.model,
                                       params=params, 
                                       credentials=creds)
-    
+        self.logger.debug(f"[{inspect.stack()[0][3]}] BAM LLM instance {self.llm}")
+
+
     def watson_llm_instance(self):
+        self.logger.debug(f"[{inspect.stack()[0][3]}] Watson LLM instance")
         creds = {
             "url": self.inference_url, # example from https://heidloff.net/article/watsonx-langchain/ 
             "apikey": self.api_key
@@ -148,6 +183,7 @@ class LLMConfig():
                          project_id=os.environ.get('WATSON_PROJECT_ID', None)
                          )
         self.llm = WatsonxLLM(model=llm_model)
+        self.logger.debug(f"[{inspect.stack()[0][3]}] Watson LLM instance {self.llm}")
 
     def status(self):
         return [f"{'LLM backend':<20} = {self.backend}",
@@ -176,7 +212,7 @@ if __name__ == '__main__':
             """,
     )
 
-    llm_config=LLMConfig(backend='bam')
+    llm_config=LLMConfig(backend='ollama')
     llm_chain=LLMChain(llm=llm_config.llm, prompt=prompt)
 
     q1="How to build an application in OpenShift"

@@ -6,19 +6,20 @@ _ = load_dotenv(find_dotenv()) # read local .env file
 from src.llm_service import LLMConfig
 from src.assist_shell import AssistShell
 from src.assist_prompts import AssistPrompts
+from src.logger import Logger
 
 def main():
-    assist_prompts=AssistPrompts()
-    llm_config=LLMConfig()
+    logger=Logger().logger
+
+    assist_prompts=AssistPrompts(logger=logger)
+    llm_config=LLMConfig(logger=logger)
     assist=AssistShell()
 
-    #print("DEBUG [main]: Setting assistant.llm")
+    assist.set_logger(logger=logger)
     assist.set_llm(llm_config.llm)
-    #print("DEBUG [main]: Adding prompt_callback")
     assist.add_prompt_callback(assist_prompts.get_prompt_template)
-    #print("DEBUG [main]: Adding status_callback")
     assist.add_status_callback(llm_config.status)
-    #print("DEBUG [main]: Adding invoking cmdloop")
+    assist.prompt_classes=assist_prompts.get_prompt_classes()
     assist.cmdloop()
 
 if __name__ == '__main__':

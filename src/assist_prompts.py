@@ -1,12 +1,14 @@
 import os 
+from src.logger import Logger
 
 class AssistPrompts():
-    def __init__(self, prompt_class='default') -> None:
+    def __init__(self, prompt_class='default', logger=None) -> None:
+        self.logger = logger if logger else Logger(show_message=False).logger
         self.prompt_collection = {'default':'Return a JSON with key msg and value string "{user_input}"'}
         self.prompt_class = prompt_class
-        self.read_prompts()
+        self.load_prompts()
 
-    def read_prompts(self, dir_path='templates'):
+    def load_prompts(self, dir_path='templates'):
         """Read jija template prompts from director"""
         for fname in os.listdir(path=dir_path):
             try:
@@ -20,14 +22,16 @@ class AssistPrompts():
             except OSError as e:
                 print(f"An OS error occurred: {e}")
 
-    def get_prompt_template(self, prompt_class='default', verbose=False):
+    def get_prompt_classes(self):
+        self.logger.debug(f"Available Prompt Classes: {list(self.prompt_collection.keys())}")
+        return self.prompt_collection.keys()
+
+    def get_prompt_template(self, prompt_class='default'):
         """
         Return the f-string formatted prompt template.
         If prompt_class do not exist return the default prompt
         If default prompt class do not exist return None.
         """
-        if verbose:
-            print(f"# Prompt classes={list(self.prompt_collection.keys())}")
         return self.prompt_collection.get(prompt_class, 
                                      self.prompt_collection.get('default', None)
                                      )

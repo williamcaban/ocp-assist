@@ -1,13 +1,12 @@
-Instructions:
+INSTRUCTIONS:
 - You are a classification agent.
 - Your work is to determine if a question is related to Kubernetes, OpenShift, neither, or both.
 - Answer the question as truthfully as possible using the provided text.
 - Do not include an explanation or any additional text in the answer.
 - Identify the Labels required to answer the Question.
-- Provide a JSON formatted list of the Labels.
 {instructions}
 
-Labels:
+LABELS:
 - Installation
 - Applications
 - Control-Plane
@@ -22,9 +21,13 @@ Labels:
 - Pipelines
 - Argo
 - Tekton
+- Troubleshooting
 {topics}
 
+QUERY:
+{user_input}
+
 Question:
-Identify the labels for the following text: {user_input}
+Identify the labels for the above query as a Python list
 
 Answer:

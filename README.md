@@ -9,6 +9,7 @@ This is a POC experimenting with CLI-based agent experience.
 ```bash
 # LLM Backends to enable (comma separated list)
 LLM_BACKENDS=tgi,bam
+LLM_DEFAULT=tgi         # default LLM backend
 
 # if using Hugging Face TGI local endpont
 TGI_API_URL=<url_for_your_tgi_inference_endpoint>
@@ -32,6 +33,11 @@ BAM_API_URL=<url_for_api_endpoing>
 BAM_API_KEY=<api_key>
 BAM_MODEL=<model_name>
 
+# If using Ollama
+# Some models: codellama, llama2, mistral:7b-instruct-q4_K_M, mistral
+OLLAMA_API_URL=http://localhost:11434   # update to match your Ollama server
+OLLAMA_MODEL=mistral:7b-instruct-q4_K_M # update to match your model
+
 ```
 
 - Create a Python 3.11+ virtual environment and install dependencies. **NOTE**: Must use Python 3.11 or higher.
@@ -54,11 +60,14 @@ Current features and progress
 | Available?    | Description                       |
 |:-------------:| --------------------------------- |
 | &check;       | Integration with TGI w/LLAMAv2    |
-| &check;       | Integration with WatsonX          |
+| &check;       | Integration with Ollama (any Ollama model) |
+| &check;       | Integration with WatsonX (any WatsonX model) |
 | &cross;       | ~~Integration with OpenAI~~ (removed) |
 | &check;       | Class for multi-LLM backend       |
 | &check;       | Prompt templates directory        |
 | &check;       | Runtime switch of prompt template |
-| &cross;       | Debugging hooks with class        |
+| &check;       | Debugging hooks with class (use logger class) |
+| &cross;       | Add memory for context continuity during chat |
 | &cross;       | Runtime switch of LLM-backend     |
+| &cross;       | Move LLM logic from assist class to dedicated class |
 

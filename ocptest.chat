@@ -1,0 +1,17 @@
+echo describe color red to a blind person
+describe color red to a blind person
+assist prompt classification
+echo I want to deploy a container named mysuperapp:v123 into openshift and make it available on https://superapp.com
+I want to deploy a container named mysuperapp:v123 into openshift and make it available on https://superapp.com
+assist prompt default
+echo I want to deploy a container named mysuperapp:v123 into openshift and make it available on https://superapp.com
+I want to deploy a container named mysuperapp:v123 into openshift and make it available on https://superapp.com
+assist prompt default_yaml
+echo I want to deploy a container named mysuperapp:v123 into openshift and make it available on https://superapp.com
+I want to deploy a container named mysuperapp:v123 into openshift and make it available on https://superapp.com
+assist prompt default_succinct
+echo I want to deploy a container named mysuperapp:v123 into openshift and make it available on https://superapp.com
+I want to deploy a container named mysuperapp:v123 into openshift and make it available on https://superapp.com
+assist prompt raw
+echo I want to deploy a container named mysuperapp:v123 into openshift and make it available on https://superapp.com
+I want to deploy a container named mysuperapp:v123 into openshift and make it available on https://superapp.com

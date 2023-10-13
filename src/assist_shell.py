@@ -1,8 +1,10 @@
-import cmd, re, os
+import cmd, re, os, inspect
 
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
+
+from src.logger import Logger
 
 class AssistShell(cmd.Cmd):
     def preloop(self):
@@ -11,15 +13,23 @@ class AssistShell(cmd.Cmd):
         self.fname = 'ocp.chat'
         self.file = None
         self.memory = None
+        self.logger = self.logger if 'logger' in dir(self) else Logger(show_message=False).logger
         self.answer_from_llm = False
         self.add_status_callback(self.status)
         self.prompt_class = 'default' # start with 'default' prompt class
+        #self.prompt_classes = ['default']
+
+    def set_logger(self, logger=None):
+        self.logger = logger if logger else Logger(show_message=False).logger
 
     def default(self, arg):
         'Default action for prompts'
         self.process_prompt(arg)
         self.answer_from_llm = True
         #return answer
+    def do_echo(self, arg):
+        'Return the prompt'
+        print(f"Input Prompt={arg}")
 
     def do_assist(self, arg):
         """
@@ -27,7 +37,6 @@ class AssistShell(cmd.Cmd):
         
         assist [<sub-command>] [<sub-command-options>]
         
-            info                    : Display general information about the assistant
             status                  : Display system status
             reset                   : Tells the agent to forget previous interactions and context
             record                  : Starts saving interaction to filename: record <file_name> (default to ocp.chat)
@@ -80,18 +89,25 @@ class AssistShell(cmd.Cmd):
         print('Rocket Panda!!!')
 
     def assist_prompt_class(self, prompt_class=None):
+        self.logger.debug(f"[{inspect.stack()[0][3]}] prompt_class={prompt_class}")
+
         if prompt_class != None:
             self.prompt_class=prompt_class
 
         prompt_template=PromptTemplate.from_template('')        
         if len(self.prompts_callbacks) > 0:
             for p in self.prompts_callbacks:
-                #print(f"DEBUG\n{p(self.prompt_class)}\n\n")
-                prompt_template=prompt_template+p(self.prompt_class, verbose=True)
+                prompt_template=prompt_template+p(self.prompt_class)
         else:
             prompt_template=prompt_template+'{user_input}'
+
+        print(f"\nActive Prompt Class: {self.prompt_class}\nAvailable Prompt Classes:\n\t{list(self.prompt_classes)}\n")
+
         # Display current prompt template
-        print(f"Active prompt class='{self.prompt_class}' with input variables='{prompt_template.input_variables}'\nRAW_TEMPLATE\n",prompt_template.template)
+        self.logger.debug(f"[{inspect.stack()[0][3]}] Active prompt class='{self.prompt_class}' with input variables='{prompt_template.input_variables}'"+
+                          f"\nRAW_TEMPLATE\n"+
+                          prompt_template.template)
+
 
     def assist_status(self):
         'Display the status of the system'
@@ -135,6 +151,10 @@ class AssistShell(cmd.Cmd):
             self.cmdqueue.extend(f.read().splitlines())
         else:
             print(f'I have no memory to replay.')
+
+    def emptyline(self):
+        """Invoked when empty line"""
+        self.assist_info()
 
     def precmd(self, line):
         line = line.lower()
@@ -219,16 +239,17 @@ class AssistShell(cmd.Cmd):
             for p in self.prompts_callbacks:
                 prompt_template=prompt_template+p(self.prompt_class)
         else:
-            print(f"DEBUG: Cannot find 'prompts_callbacks' defined, using direct interaction.")
+            self.logger.debug(f"[{inspect.stack()[0][3]}] Cannot find 'prompts_callbacks' defined, using direct interaction")
             prompt_template=prompt_template+'{user_input}'
 
-        self.llm_chain = LLMChain(llm=self.llm, prompt=prompt_template, verbose=True)
+        # Enable verbosity=True to see the raw prompt sent to the model
+        self.llm_chain = LLMChain(llm=self.llm, prompt=prompt_template, verbose=False)
  
     def process_prompt(self, raw_prompt):
         # rebuild chain if using a non-default prompt_class
-        if self.prompt_class != 'default':
-            print(f"DEBUG: Found prompt_class='{self.prompt_class}'. Building LLMChain...")
-            self.build_chain()
+        #if self.prompt_class != 'default':
+        self.logger.debug(f"[{inspect.stack()[0][3]}] Found prompt_class='{self.prompt_class}'. Building LLMChain...")
+        self.build_chain()
 
         input_dict = self.llm_chain.input_schema().dict()
         input_dict['user_input']=raw_prompt
@@ -237,9 +258,10 @@ class AssistShell(cmd.Cmd):
             input_dict[k]='' if input_dict[k] is None else input_dict[k] 
 
         try:
-            print(self.llm_chain.run(**input_dict))
-        except Exception as error:
-            print(f"\nERROR: Ooops. There is something wrong with the backend LLM: {type(error).__name__}")
+            #print(self.llm_chain.run(**input_dict))
+            self.llm_chain.run(**input_dict)
+        except Exception as e:
+            print(f"\nERROR: Ooops. There is something wrong with the backend LLM: {type(e).__name__}")
     
     def status(self):
         return [f"{'Assistant Shell':<20} = operational",

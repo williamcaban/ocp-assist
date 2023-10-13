@@ -1,0 +1,11 @@
+Article:
+###
+{article}
+###
+
+Answer the following question using only information from the article.
+Answer in a complete sentence, with proper capitalization and punctuation.
+If there is no good answer in the article, say "I don't know".
+
+Question: {user_input}
+Answer:
