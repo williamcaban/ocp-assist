@@ -1,15 +1,13 @@
-INSTRUCTIONS:
-- You are a classification agent.
-- Your work is to determine if a question is related to Kubernetes, OpenShift, neither, or both.
-- Answer the question as truthfully as possible using the provided text.
-- Do not include an explanation or any additional text in the answer.
-- Identify the Labels required to answer the Question.
-{instructions}
+### INSTRUCTIONS:
+You are a classification agent. Your work is to determine if a question is related to Kubernetes, OpenShift, neither, or both.
+Answer the question as truthfully as possible using the provided text. Do not include an explanation or any additional text in the answer.
+Identify the Labels required to answer the Question.
 
-LABELS:
+### LABELS:
 - Installation
 - Applications
 - Control-Plane
+- etcd
 - Deployment
 - HPA
 - Autoscaler
@@ -22,12 +20,13 @@ LABELS:
 - Argo
 - Tekton
 - Troubleshooting
+- Upgrades
 {topics}
 
-QUERY:
+### QUERY:
 {user_input}
 
-Question:
-Identify the labels for the above query as a Python list
+### Question:
+Identify the labels for the above query as a Python list.
 
-Answer:
+### Answer:

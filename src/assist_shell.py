@@ -29,12 +29,23 @@ class AssistShell(cmd.Cmd):
         
     def do_echo(self, arg):
         'Return the prompt'
-        print(f"Input Prompt={arg}")
+        print(f"PROMPT={arg}")
 
     def do_rephrase(self, arg):
-        """Rephrase prompt for K8s context"""
+        """Rephrase and optimizes prompt for K8s context"""
         current_prompt_class=self.prompt_class
         self.prompt_class='rephrase'
+        self.process_prompt(arg)
+        print("\n")
+        self.prompt_class=current_prompt_class
+    
+    def do_translate(self,arg):
+        """Translate prompt to English"""
+        if len(arg) < 1:
+            # nothing to translate
+            return
+        current_prompt_class=self.prompt_class
+        self.prompt_class='translate'
         self.process_prompt(arg)
         print("\n")
         self.prompt_class=current_prompt_class
@@ -61,7 +72,8 @@ class AssistShell(cmd.Cmd):
             record                  : Starts saving interaction to filename: record <file_name> (default to ocp.chat)
             playback                : Playback interaction from a filename: playback <file_name> (default to ocp.chat)
             forget                  : Removes saved interaction filename: forget <file_name> (default to ocp.chat)
-            prompt <prompt_class>   : Return current prompt template or set new prompt class template
+            mode <prompt_class>     : Return current prompt template or set new prompt class template
+            default_llm             : Switch default backend LLM (LLM must be in the list of LLM_BACKENDS environment variable)
             who_are_you             : Identify assistant agent
         """
         arg_list = arg.split()
@@ -89,7 +101,7 @@ class AssistShell(cmd.Cmd):
                 self.assist_forget(param1)
             case 'playback':
                 self.assist_playback(param1)
-            case 'prompt':
+            case 'mode':
                 self.assist_prompt_class(param1)
             case 'who_are_you':
                 self.assist_who_are_you()
@@ -269,6 +281,12 @@ class AssistShell(cmd.Cmd):
         #if self.prompt_class != 'default':
         self.logger.debug(f"[{inspect.stack()[0][3]}] Found prompt_class='{self.prompt_class}'. Building LLMChain...")
         self.build_chain()
+
+        self.logger.debug(f"[{inspect.stack()[0][3]}] raw_prompt={raw_prompt}")
+
+        if raw_prompt[0] == "#":
+            self.logger.debug(f"[{inspect.stack()[0][3]}] Ignoring prompt starting with # ...")
+            return
 
         input_dict = self.llm_chain.input_schema().dict()
         input_dict['user_input']=raw_prompt

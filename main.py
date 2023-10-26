@@ -3,7 +3,7 @@ from dotenv import load_dotenv, find_dotenv
 _ = load_dotenv(find_dotenv()) # read local .env file
 
 # custom classes
-from src.llm_service import LLMConfig
+from src.llm_config import LLMConfig
 from src.assist_shell import AssistShell
 from src.assist_prompts import AssistPrompts
 from src.logger import Logger

@@ -188,8 +188,7 @@ class LLMConfig():
     def status(self):
         return [f"{'LLM backend':<20} = {self.backend}",
                 f"{'LLM url':<20} = {self.inference_url}",
-                f"{'LLM model':<20} = {self.model}",
-                f"{'LLM prompt_type':<20} = {self.prompt_type}"]
+                f"{'LLM model':<20} = {self.model}"]
 
 if __name__ == '__main__':
     # load environment variables from .env

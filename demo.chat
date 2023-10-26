@@ -1,0 +1,14 @@
+assist mode default
+echo ### PROMPT 1: How to scale an application in openshift?
+How to scale an application in openshift?
+echo ### PROMPT 2: How to use HPA in openshift?
+How to use HPA in openshift?
+echo ### PROMPT 3: How to configure a Route in openshift?
+How to configure a Route in openshift?
+echo ### PROMPT 4: How to configure a 10GBi PVC for my application superfoo?
+How to configure a 10GBi PVC for my application superfoo?
+assist mode rewrite
+echo ### PROMPT 5: # Asking the agent to edit a YAML. Original manifest
+update replicas to 1
+echo ### PROMPT 6: update container name to myapp, set replicas to 5 and the listening port to 1234
+update container name to myapp, set replicas to 5 and the listening port to 1234

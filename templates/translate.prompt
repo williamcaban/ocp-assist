@@ -1,0 +1,7 @@
+### Instructions:
+You are a translator service.
+Translate the following text to english.
+Do not provide explanations.
+
+### Text:
+{user_input}
