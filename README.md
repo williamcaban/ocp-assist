@@ -4,12 +4,19 @@ This is a POC experimenting with CLI-based agent experience.
 
 ## Running the POC
 
+Note: If running the POC locally `ollama` can be used as backend. If like to run `ollama` on OpenShift check [ollama-ubi](https://github.com/williamcaban/ollama-ubi) repo for instructions.
+
 - Create a `.env` file to pass environment variables for the script
 
 ```bash
 # LLM Backends to enable (comma separated list)
-LLM_BACKENDS=tgi,bam
-LLM_DEFAULT=tgi         # default LLM backend
+LLM_BACKENDS=ollama,tgi
+LLM_DEFAULT=ollama         # default LLM backend
+
+# If using Ollama
+# Some models: codellama, llama2, mistral:7b-instruct-q4_K_M, mistral
+OLLAMA_API_URL=http://localhost:11434   # update to match your Ollama server
+OLLAMA_MODEL=mistral:7b-instruct-q4_K_M # update to match your model
 
 # if using Hugging Face TGI local endpont
 TGI_API_URL=<url_for_your_tgi_inference_endpoint>
@@ -32,12 +39,6 @@ WATSON_MODEL=ibm/granite-13b-instruct-v1
 BAM_API_URL=<url_for_api_endpoing>
 BAM_API_KEY=<api_key>
 BAM_MODEL=<model_name>
-
-# If using Ollama
-# Some models: codellama, llama2, mistral:7b-instruct-q4_K_M, mistral
-OLLAMA_API_URL=http://localhost:11434   # update to match your Ollama server
-OLLAMA_MODEL=mistral:7b-instruct-q4_K_M # update to match your model
-
 ```
 
 - Create a Python 3.11+ virtual environment and install dependencies. **NOTE**: Must use Python 3.11 or higher.
@@ -70,3 +71,5 @@ Current features and progress
 | &cross;       | Add memory for context continuity during chat |
 | &cross;       | Runtime switch of LLM-backend     |
 | &cross;       | Move LLM logic from assist class to dedicated class |
+| &cross;       | Decouple CLI client from backend with client/server archicture|
+| &cross;       | Live connection/retrieval from Kuberenes/OpenShift cluster|
