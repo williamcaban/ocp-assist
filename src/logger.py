@@ -21,7 +21,7 @@ class Logger:
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(self.log_level)
 
-        formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+        formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(filename)s:%(lineno)d) %(message)s')
 
         # console logging handler
         console_handler = logging.StreamHandler()
@@ -36,13 +36,3 @@ class Logger:
 
         self.logger.addHandler(console_handler)
         self.logger.addHandler(file_handler)
-
-# logger.debug('Debug message')
-# logger.info('Info message')
-# logger.warning('Warning message')
-# logger.error('Error message')
-# logger.critical('Critical message')
-
-# self.logger.debug(f"[{inspect.stack()[0][3]}] Message here.")
-# self.logger = logger if logger else Logger(show_message=False).logger
-

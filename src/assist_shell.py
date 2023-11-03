@@ -5,6 +5,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 
 from src.logger import Logger
+from src.llm_config import LLMConfig
 
 class AssistShell(cmd.Cmd):
     def preloop(self):
@@ -17,7 +18,6 @@ class AssistShell(cmd.Cmd):
         self.answer_from_llm = False
         self.add_status_callback(self.status)
         self.prompt_class = 'default' # start with 'default' prompt class
-        #self.prompt_classes = ['default']
 
     def set_logger(self, logger=None):
         self.logger = logger if logger else Logger(show_message=False).logger
@@ -103,12 +103,21 @@ class AssistShell(cmd.Cmd):
                 self.assist_playback(param1)
             case 'mode':
                 self.assist_prompt_class(param1)
+            case 'default_llm':
+                self.assist_default_llm(param1)
             case 'who_are_you':
                 self.assist_who_are_you()
             case _:
                 print('Unknown or missing <sub-command>')
                 print(self.do_assist.__doc__)
-        
+
+    def assist_default_llm(self, llm):
+        if llm is None:
+            self.logger.info(f"""Current set default_llm={os.environ.get("LLM_DEFAULT")}""")
+            return
+        os.environ['LLM_DEFAULT'] = llm
+        self.llm = LLMConfig(backend=llm, logger=self.logger).llm
+
     def assist_info(self):
         """
         Welcome to OpenShift Assistant shell. You may interact with this assistant using English natural language.
